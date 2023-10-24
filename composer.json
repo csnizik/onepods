@@ -1,0 +1,127 @@
+{
+  "name": "pods/pods-base",
+  "description": "Project template for PODS distribution.",
+  "type": "project",
+  "license": "GPL-2.0-or-later",
+  "repositories": {
+    "drupal": {
+      "type": "composer",
+      "url": "https://packages.drupal.org/8"
+    },
+    "custom_module_1": {
+      "type": "vcs",
+      "url": "https://github.com/csnizik/custom_module_1.git"
+    },
+    "custom_module_2": {
+      "type": "vcs",
+      "url": "https://github.com/csnizik/custom_module_2.git"
+    },
+    "demo_theme": {
+      "type": "vcs",
+      "url": "https://github.com/csnizik/demo_theme.git"
+    },
+    "assets": {
+      "type": "composer",
+      "url": "https://asset-packagist.org"
+    }
+  },
+  "require": {
+    "composer/installers": "~2.0",
+    "oomphinc/composer-installers-extender": "~2.0",
+    "cweagans/composer-patches": "~1.0",
+    "drupal/core-composer-scaffold": "~9.1",
+    "drupal/core-project-message": "~9.1",
+    "webflo/drupal-finder": "~1.0",
+    "farmos/farmos": "^2.0",
+    "drupal/oauth2_server": "^2.0",
+    "pods/custom_module_1": "dev-main",
+    "pods/custom_module_2": "dev-main",
+    "pods/demo_theme": "dev-main",
+    "consolidation/robo": "^4.0",
+    "lcobucci/clock": "^2.3.0",
+    "drupal/erd": "^2.0@alpha",
+    "drupal/csv_importer": "^1.16",
+    "drupal/masquerade": "^2.0@RC"
+  },
+  "require-dev": {
+    "drupal/core-dev": "~9.1",
+    "drush/drush": "~11.0"
+  },
+  "config": {
+    "bin-dir": "bin/",
+    "secure-http": false,
+    "optimize-autoloader": true,
+    "preferred-install": {
+      "*": "dist",
+      "pods/custom_module_1": "source",
+      "pods/custom_module_2": "source",
+      "pods/demo_theme": "source"
+    },
+    "allow-plugins": {
+      "composer/installers": true,
+      "cweagans/composer-patches": true,
+      "oomphinc/composer-installers-extender": true,
+      "drupal/core-composer-scaffold": true,
+      "drupal/core-project-message": true,
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    },
+    "platform-check": false
+  },
+  "scripts": {
+    "pre-install-cmd": [
+      "echo 'Lock file found, about to install'"
+    ],
+    "post-install-cmd": [
+      "echo 'Install executed'"
+    ],
+    "pre-update-cmd": [
+      "echo 'Lock file not found, about to install OR about to update'"
+    ],
+    "post-update-cmd": [
+      "echo 'Install/update executed'"
+    ],
+    "post-create-project-cmd": [
+      "echo 'Create project executed'"
+    ]
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "conflict": {
+    "drupal/drupal": "*"
+  },
+  "extra": {
+    "drupal-scaffold": {
+      "allowed-packages": [
+        "drupal/core"
+      ],
+      "gitignore": true,
+      "locations": {
+        "web-root": "./web"
+      }
+    },
+    "installer-paths": {
+      "web/core": [
+        "type:drupal-core"
+      ],
+      "web/profiles/contrib/{$name}": [
+        "type:drupal-profile"
+      ],
+      "web/modules/contrib/{$name}": [
+        "type:drupal-module"
+      ],
+      "web/themes/contrib/{$name}": [
+        "type:drupal-theme"
+      ],
+      "web/themes/custom/{$name}": [
+        "type:drupal-custom-theme"
+      ],
+      "web/modules/custom/{$name}": [
+        "type:drupal-custom-module"
+      ],
+      "drush/contrib/{$name}": [
+        "type:drupal-drush"
+      ]
+    },
+    "enable-patching": true
+  }
+}

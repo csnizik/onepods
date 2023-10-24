@@ -1,0 +1,201 @@
+#!/bin/bash
+set -e
+
+# Colors and indents
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No color
+IN1='%-2s' # Single indent
+IN2='%-4s' # Double indent
+
+PROJECT_ROOT=$(pwd)
+DRUPAL_ROOT="${PROJECT_ROOT}/web"
+ASSETS_DIR="${PROJECT_ROOT}/custom_assets"
+OS=""
+REPOS=("git@github.com:csnizik/custom_module_1.git"
+        "git@github.com:csnizik/custom_module_2.git")
+declare -a DIRECTORIES
+
+function goto_projectroot() {
+    if [[ $(pwd) != "$PROJECT_ROOT" ]]
+        then
+            cd "$PROJECT_ROOT"
+    fi
+}
+
+function goto_drupalroot() {
+    if [ ! -d "$DRUPAL_ROOT" ]; then
+        mkdir "$DRUPAL_ROOT"
+    fi
+    if [[ $(pwd) != "$DRUPAL_ROOT" ]]
+        then
+            cd "$DRUPAL_ROOT"
+    fi
+}
+
+# Unless specifically working on the pods_base project, custom
+# work should be done in the module repos, which will be cloned
+# into the ./custom_assets/ directory.
+
+# To avoid having nested .git repos, we will un-git the root directory.
+# (If working on pods_base, comment out this line.)
+goto_projectroot && rm -rf ./.git
+
+function create_assets_dir() {
+    printf "${BLUE}Setting up ${NC}$ASSETS_DIR${BLUE}...${NC}\n"
+
+    if [ ! -d "$ASSETS_DIR" ]; then
+        mkdir "$ASSETS_DIR"
+        printf "${IN1}${GREEN}Directory ${NC}$ASSETS_DIR${GREEN} created.${NC}"
+    else
+        printf "${IN1}${GREEN}Directory ${NC}$ASSETS_DIR${GREEN} already exists.${NC}"
+    fi
+}
+
+function update_repos() {
+    create_assets_dir
+    cd $ASSETS_DIR
+    for REPO in "${REPOS[@]}"
+        do
+            # Extract repo name
+            REPO_NAME=$(basename $REPO .git)
+
+            # Check if directory already exists
+            if [ -d "$REPO_NAME" ]; then
+                cd $REPO_NAME
+                printf "\n${BLUE}Updating $REPO_NAME...${NC}\n"
+                git pull origin main
+                printf "${IN1}${GREEN}Updated $REPO_NAME${NC}\n\n"
+                cd $ASSETS_DIR
+            else
+                git clone $REPO
+                printf "\n${IN1}${GREEN}Cloned $REPO_NAME${NC}\n\n"
+            fi
+            DIRECTORIES+=($REPO_NAME)
+        done
+    printf "${IN1}${GREEN}${#DIRECTORIES[@]} repos were updated${NC}:\n"
+    for DIR in "${DIRECTORIES[@]}"
+        do
+            printf "${IN2}./$DIR/\n"
+        done
+}
+
+function check_vol() {
+    DIR=$1
+    VOL_DIR="$ASSETS_DIR/$DIR"
+
+    printf "\n${BLUE}Checking volume ${NC}$DIR${BLUE}...${NC}\n"
+    cd $ASSETS_DIR
+    if docker volume inspect "${DIR}" >/dev/null 2>&1; then
+        printf "${IN1}${GREEN}Volume ${NC}${DIR}${GREEN} already exists.${NC}\n"
+    else
+        printf "${IN1}${BLUE}Volume ${NC}${DIR}${BLUE} does not exist. Creating...${NC}\n"
+        docker volume create "${DIR}"
+        if docker volume inspect "${DIR}" >/dev/null 2>&1; then
+            printf "${IN1}${GREEN}Volume ${NC}${DIR}${GREEN} created.${NC}\n"
+        else
+            printf "${IN1}${RED}There was a problem creating ${NC}Volume ${DIR}${RED}. Check Docker logs.${NC}\n"
+            exit 1
+        fi
+    fi
+}
+
+function check_os() {
+    case "$(uname -s)" in
+        Linux*) OS="Linux";;
+        Darwin*)    OS="Mac";;
+        MINGW*) OS="Windows";;
+        *)  OS="Unknown"
+    esac
+
+    printf "${GREEN}$OS detected${NC}\n"
+}
+
+function check_connect() {
+    if [ "$OS" == "Windows" ]; then
+        if ping google.com >&/dev/null; then
+            printf "${GREEN}Internet connection detected - WIN${NC}\n"
+        else
+            printf "${RED}No internet connection detected - WIN${NC}\n"
+            exit 1
+        fi
+    else
+        if ping -c 1 -q google.com >&/dev/null; then
+            printf "${GREEN}Internet connection detected{NC}\n"
+        else
+            printf "${RED}No internet connection detecte${NC}\n"
+            exit 1
+        fi
+    fi
+}
+
+function check_docker() {
+    if command -v docker &> /dev/null
+then
+    if ! docker info >/dev/null 2>&1; then
+        printf "${RED}Docker is installed but not running. Please start Docker.${NC}\n"
+        exit 1
+    fi
+    printf "${GREEN}Docker detected and running${NC}\n"
+else
+    printf "${RED}Docker is not installed. Please install Docker.${NC}\n"
+    exit 1
+fi
+}
+
+function start_docker_compose() {
+    if command -v docker-compose &> /dev/null
+    then
+        docker-compose up -d
+        printf "${GREEN}Docker compose started${NC}\n"
+    else
+        printf "${RED}There was a problem starting Docker compose.${NC}\n"
+        exit 1
+    fi
+}
+
+function run() {
+    goto_projectroot
+
+    printf "${BLUE}\nChecking operating system...${NC}\n"
+    check_os
+
+    printf "${BLUE}\nChecking internet connection...${NC}\n"
+    check_connect
+
+    printf "${BLUE}\nChecking Docker...${NC}\n"
+    check_docker
+
+    printf "${BLUE}\nUpdating repos...${NC}\n"
+    update_repos
+
+    printf "${BLUE}\nUpdating volumes...${NC}\n"
+    for DIR in "${DIRECTORIES[@]}"
+    do
+        check_vol $DIR
+    done
+
+    goto_drupalroot
+
+    printf "${BLUE}\nStarting Docker compose...${NC}\n"
+    start_docker_compose
+
+    docker-compose up -d
+}
+
+# Check for arguments
+if [ $# -eq 0 ]; then
+    printf "${BLUE}You must supply an argument.${NC}\n"
+    exit 1
+else
+    case "$1" in
+        start|-s)
+            run
+            ;;
+        *)
+            printf "${RED}Invalid argument.${NC}\n"
+            exit 1
+            ;;
+    esac
+fi

@@ -1,0 +1,30 @@
+version: '3'
+services:
+  drupal:
+    image: farmos/farmos:2.x
+    ports:
+      - 8080:80
+    volumes:
+      - ./:/opt/drupal
+      - custom_assets:/var/www/html/modules/custom # TODO rename to modules
+      # - custom_themes:/var/www/html/themes/custom TODO
+    depends_on:
+      - db
+    environment:
+      - MYSQL_USER=drupal
+      - MYSQL_PASSWORD=drupal
+      - MYSQL_DATABASE=drupal
+
+  db:
+    image: mysql:5.7
+    volumes:
+      - db_data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=drupal
+      - MYSQL_USER=drupal
+      - MYSQL_PASSWORD=drupal
+      - MYSQL_DATABASE=drupal
+
+volumes:
+  db_data:
+  custom_assets:
